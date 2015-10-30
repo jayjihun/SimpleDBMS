@@ -26,9 +26,9 @@ import java.util.Vector;
 
 public class SimpleDBMSParser
 {
-	public static final boolean suppressAlert = false;
-	public static final boolean suppressWonder = false;
-	public static final boolean suppressDebug = false;
+	public static final boolean suppressAlert = true;
+	public static final boolean suppressWonder = true;
+	public static final boolean suppressDebug = true;
 
 	public static void debug(String input)
 	{		if(!suppressDebug)
