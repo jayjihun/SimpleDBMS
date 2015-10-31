@@ -134,6 +134,155 @@ class CharLengthError implements QueryMessage
 	}
 }
 
+//==========================Messages for Project 3===========================
+//==========================Messages for Project 3===========================
+//==========================Messages for Project 3===========================
+//==========================Messages for Project 3===========================
+
+class InsertResult implements QueryMessage
+{
+	public String toString()
+	{
+		return "The row is inserted";
+	}
+}
+
+class InsertDuplicatePrimaryKeyError implements QueryMessage
+{
+	public String toString()
+	{
+		return "Insertion has failed: Primary key duplication";
+	}
+}
+
+class InsertReferentialIntegrityError implements QueryMessage
+{
+	public String toString()
+	{
+		return "Insertion has failed: Referential integrity violation";
+	}
+}
+
+class InsertTypeMismatchError implements QueryMessage
+{
+	public String toString()
+	{
+		return "Insertion has failed: Types are not matched";
+	}
+}
+
+class InsertColumnExistenceError implements QueryMessage
+{
+	InsertColumnExistenceError(String cn)
+	{
+		columnName = cn;
+	}
+	public String columnName="";
+	public String toString()
+	{
+		return "Insertion has failed: \"["+columnName+"]\" does not exist";
+	}
+}
+
+class InsertColumnNonNullableError implements QueryMessage
+{
+	InsertColumnNonNullableError(String cn)
+	{
+		columnName = cn;
+	}
+	public String columnName="";
+	public String toString()
+	{
+		return "Insertion has failed: \"["+columnName+"]\" is not null";
+	}
+}
+
+class DeleteResult implements QueryMessage
+{
+	DeleteResult(int a)
+	{
+		count = a;
+	}
+	int count=0;
+	
+	public String toString()
+	{
+		return "["+count+"] row(s) are deleted";
+	}
+}
+
+class DeleteReferentialIntegrityPassed implements QueryMessage
+{
+	DeleteReferentialIntegrityPassed(int a)
+	{
+		count = a;
+	}
+	int count=0;
+	
+	public String toString()
+	{
+		return "["+count+"] row(s) are not deleted due to referential integrity";
+	}
+}
+
+class SelectTableExistenceError implements QueryMessage
+{
+	SelectTableExistenceError(String cn)
+	{
+		tableName = cn;
+	}
+	public String tableName="";
+	public String toString()
+	{
+		return "Selection has failed: \"["+tableName+"]\" does not exist";
+	}
+}
+
+class SelectColumnResolveError implements QueryMessage
+{
+	SelectColumnResolveError(String cn)
+	{
+		columnName = cn;
+	}
+	public String columnName="";
+	public String toString()
+	{
+		return "Selection has failed: fail to resolve\"["+columnName+"]\"";
+	}
+}
+
+class WhereIncomparableError implements QueryMessage
+{
+	public String toString()
+	{
+		return "Where clause try to compare incomparable values";
+	}
+}
+
+class WhereTableNotSpecified implements QueryMessage
+{
+	public String toString()
+	{
+		return "Where clause try to reference tables which are not specified";
+	}
+}
+
+class WhereColumnNotExist implements QueryMessage
+{
+	public String toString()
+	{
+		return "Where clause try to reference non existing column";
+	}
+}
+
+class WhereAmbiguousReference implements QueryMessage
+{
+	public String toString()
+	{
+		return "Where clause contains ambiguous reference";
+	}
+}
+
 class SyntaxError implements QueryMessage
 {
 	public String toString()
