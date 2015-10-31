@@ -51,9 +51,6 @@ public class SimpleDBMSParser
 	public static Database myDatabase = null;
 
 	public static QueryRequest request = null;
-	public static CreateTableRequest c_request = new CreateTableRequest();
-	public static DropTableRequest d_request = new DropTableRequest();
-	public static DescRequest desc_request = new DescRequest();
 	public static AllTables alltables = null;
 	public static Vector<Table > tables = null;
 
@@ -90,9 +87,7 @@ public class SimpleDBMSParser
 			}
 			finally
 			{
-				c_request = new CreateTableRequest();
-				d_request = new DropTableRequest();
-				desc_request =new DescRequest();
+				request = null;
 			}
 		}
 	}
@@ -288,7 +283,7 @@ public class SimpleDBMSParser
 
 		Cursor cursor;
 		DatabaseEntry key=new DatabaseEntry(),data=new DatabaseEntry();
-		CreateTableRequest req = c_request;
+		CreateTableRequest req = (CreateTableRequest)request;
 
 		Vector<String> alltablenames = alltables.tableNames;
 
@@ -439,7 +434,7 @@ public class SimpleDBMSParser
 
 	public static QueryMessage dropHandler()
 	{
-		DropTableRequest req = d_request;
+		DropTableRequest req = (DropTableRequest)request;
 		QueryMessage result = new Dummy();
 		Vector<String > tableNamesList;
 
@@ -495,7 +490,7 @@ public class SimpleDBMSParser
 
 	public static QueryMessage descHandler()
 	{
-		DescRequest req = desc_request;
+		DescRequest req = (DescRequest)request;
 		QueryMessage result = new Dummy();
 		Vector<String > tableNamesList;
 
@@ -633,18 +628,18 @@ TOKEN :
 				createTableQuery()
 				{
 					mes = createHandler();
-					c_request = new CreateTableRequest();
+					request = null;
 
 				}
 				| dropTableQuery()
 				{
 					mes = dropHandler();
-					d_request = new DropTableRequest();
+					request = null;
 				}
 				| descQuery()
 				{
 					mes = descHandler();
-					desc_request = new DescRequest();
+					request = null;
 				}
 				)
 		(
@@ -663,12 +658,14 @@ TOKEN :
 
 				< CREATE >
 				< TABLE >
+				{					request = new CreateTableRequest();
+				}
 				tName = tableName()
 				tableElementList()
 				)
 		(
 				{
-					c_request.tableName = tName;
+					((CreateTableRequest)request).tableName = tName;
 				}
 				)
 	}
@@ -709,8 +706,8 @@ TOKEN :
 						}
 						)?
 								{
-			c_request.columnNames.addElement(colName);
-			c_request.columns.addElement(new Column(colName,datatype,nullOk,false,false));
+			((CreateTableRequest)request).columnNames.addElement(colName);
+			((CreateTableRequest)request).columns.addElement(new Column(colName,datatype,nullOk,false,false));
 								}
 	}
 
@@ -730,15 +727,15 @@ TOKEN :
 		< KEY >
 		colList = columnNameList()
 		{
-			if(c_request.keyAlready)
+			if(((CreateTableRequest)request).keyAlready)
 			{
-				c_request.dupKeyError=true;
+				((CreateTableRequest)request).dupKeyError=true;
 				return;
 			}
 			else
 			{
-				c_request.keyAlready=true;
-				c_request.primaryColumns = colList;
+				((CreateTableRequest)request).keyAlready=true;
+				((CreateTableRequest)request).primaryColumns = colList;
 			}
 		}
 	}
@@ -759,7 +756,7 @@ TOKEN :
 				refedC = columnNameList()
 				)
 		(
-				{c_request.referenceColumns.addElement(new RefColumn(refingC,tName,refedC));}
+				{((CreateTableRequest)request).referenceColumns.addElement(new RefColumn(refingC,tName,refedC));}
 				)
 	}
 
@@ -837,6 +834,8 @@ TOKEN :
 	{
 		< DROP >
 		< TABLE >
+		{			request = new DropTableRequest();
+		}
 		dropTableNameList()
 	}
 
@@ -847,13 +846,13 @@ TOKEN :
 	{
 		< ASTERISK >
 		{
-			d_request.all = true;
+			((DropTableRequest)request).all = true;
 		}
 		|
-		tname = tableName()	{d_request.colList.addElement(tname);}
+		tname = tableName()	{((DropTableRequest)request).colList.addElement(tname);}
 		(
 				< COMMA >
-				tname = tableName()	{d_request.colList.addElement(tname);}
+				tname = tableName()	{((DropTableRequest)request).colList.addElement(tname);}
 				)*
 	}
 
@@ -867,6 +866,8 @@ TOKEN :
 	}
 	{
 		< DESC >
+		{			request = new DescRequest();
+		}
 		descTableNameList()
 	}
 
@@ -877,13 +878,13 @@ TOKEN :
 	{
 		< ASTERISK >
 		{
-			desc_request.all = true;
+			((DescRequest)request).all = true;
 		}
 		|
-		tname = tableName()	{desc_request.colList.addElement(tname);}
+		tname = tableName()	{((DescRequest)request).colList.addElement(tname);}
 		(
 				< COMMA >
-				tname = tableName()	{desc_request.colList.addElement(tname);}
+				tname = tableName()	{((DescRequest)request).colList.addElement(tname);}
 				)*
 	}
 
