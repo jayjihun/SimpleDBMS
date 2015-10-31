@@ -47,7 +47,7 @@ class CreateTableRequest implements QueryRequest
 	}
 }
 
-class DropTableRequest
+class DropTableRequest implements QueryRequest
 {
 	Vector<String> colList;
 	boolean all;
@@ -71,7 +71,7 @@ class DropTableRequest
 	}
 }
 
-class DescRequest
+class DescRequest implements QueryRequest
 {
 	Vector<String> colList;
 	boolean all;
@@ -93,4 +93,19 @@ class DescRequest
 		result+="\n";
 		return result;	
 	}
+}
+
+class SelectRequest implements QueryRequest
+{
+	
+}
+
+class DeleteRequest implements QueryRequest
+{
+	
+}
+
+class InsertRequest implements QueryRequest
+{
+	
 }

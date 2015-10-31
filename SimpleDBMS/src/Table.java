@@ -38,6 +38,10 @@ public class Table implements Serializable
 	public String tableName;
 	public Vector<String> columnNames;
 	public Vector<Column> columns;
+	public Vector<Vector<String>> records;
+	
+	
+	
 	public Vector<String> refering;
 	public Vector<String> refered;
 	

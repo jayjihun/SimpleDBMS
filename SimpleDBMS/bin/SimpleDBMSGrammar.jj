@@ -50,6 +50,7 @@ public class SimpleDBMSParser
 	public static Environment myDbEnvironment = null;
 	public static Database myDatabase = null;
 
+	public static QueryRequest request = null;
 	public static CreateTableRequest c_request = new CreateTableRequest();
 	public static DropTableRequest d_request = new DropTableRequest();
 	public static DescRequest desc_request = new DescRequest();
@@ -885,343 +886,348 @@ TOKEN :
 				tname = tableName()	{desc_request.colList.addElement(tname);}
 				)*
 	}
-	//
-	///*
-	//=======================SELECT========================
-	//=======================SELECT========================
-	//=======================SELECT========================
-	//*/
-	//
-	//void selectQuery() :
-	//{
-	//}
-	//{
-	//  < SELECT >
-	//  selectList()
-	//  tableExpression()
-	//}
-	//
-	//void selectList() :
-	//{
-	//}
-	//{
-	//  < ASTERISK >
-	//| selectedColumn()
-	//  (
-	//    < COMMA >
-	//    selectedColumn()
-	//  )*
-	//}
-	//
-	///*
-	//selected Column ::= (tableName.)?columnName(as columnName)?
-	//both tableName and columnName are "legal identifier" although named differently.
-	//parser cannot decide if the input identifier token is tableName or columnName.
-	//parser need to lookahead one more token and decide.
-	//Since lookahead(1) is default in javaCC, lookahead(2) is used.
-	//*/
-	//void selectedColumn() :
-	//{
-	//}
-	//{
-	//  (
-	//    LOOKAHEAD(2)
-	//    tableName()
-	//    < PERIOD >
-	//  )?
-	//  columnName()
-	//  (
-	//    < AS >
-	//    columnName()
-	//  )?
-	//}
-	//
-	//
-	//void tableExpression() :
-	//{
-	//}
-	//{
-	//  fromClause()
-	//  (
-	//    whereClause()
-	//  )?
-	//}
-	//
-	//void fromClause() :
-	//{
-	//}
-	//{
-	//  < FROM >
-	//  tableReferenceList()
-	//}
-	//
-	//void tableReferenceList() :
-	//{
-	//}
-	//{
-	//  referedTable()
-	//  (
-	//    < COMMA >
-	//    referedTable()
-	//  )*
-	//}
-	//
-	//void referedTable() :
-	//{
-	//}
-	//{
-	//  tableName()
-	//  (
-	//    < AS >
-	//    tableName()
-	//  )?
-	//}
-	//
-	//void whereClause() :
-	//{
-	//}
-	//{
-	//  < WHERE >
-	//  booleanValueExpression()
-	//}
-	//
-	//
-	//
-	///*
-	//following is original grammar stated.
-	//void booleanValueExpression() :
-	//{
-	//}
-	//{
-	//  booleanTerm()
-	//| booleanValueExpression()
-	//  < OR >
-	//  booleanTerm()
-	//}
-	//
-	//void booleanTerm() :
-	//{
-	//}
-	//{
-	//  booleanFactor()
-	//| booleanTerm()
-	//  < AND >
-	//  booleanFactor()
-	//}
-	//
-	//both booleanValueExpression and booleanTerm have left recursion.
-	//A::=Aa|b can be modified using extra nonterminal
-	//1. A::= bA'
-	//2. A'::= aA'|e
-	//
-	//left recursion is removed from booleanValueExpression and booleanTerm using two _TEMP nonterminals
-	//*/
-	//
-	//void booleanValueExpression() :
-	//{
-	//}
-	//{
-	//  booleanTerm()
-	//  booleanValueExpression_TEMP()
-	//}
-	//
-	//void booleanValueExpression_TEMP() :
-	//{
-	//}
-	//{
-	//  (
-	//    < OR >
-	//    booleanTerm()
-	//    booleanValueExpression_TEMP()
-	//  )?
-	//}
-	//
-	//void booleanTerm() :
-	//{
-	//}
-	//{
-	//  booleanFactor()
-	//  booleanTerm_TEMP()
-	//}
-	//
-	//void booleanTerm_TEMP() :
-	//{
-	//}
-	//{
-	//  (
-	//    < AND >
-	//    booleanFactor()
-	//    booleanTerm_TEMP()
-	//  )?
-	//}
-	//
-	//void booleanFactor() :
-	//{
-	//}
-	//{
-	//  (
-	//    < NOT >
-	//  )?
-	//  booleanTest()
-	//}
-	//
-	//void booleanTest() :
-	//{
-	//}
-	//{
-	//  predicate()
-	//| parenthesizedBooleanExpression()
-	//}
-	//
-	//void parenthesizedBooleanExpression() :
-	//{
-	//}
-	//{
-	//  < LEFT_PAREN >
-	//  booleanValueExpression()
-	//  < RIGHT_PAREN >
-	//}
-	///*
-	//predicate ::= nullPredicate | comparisonPredicate
-	//nullPredicate ::= (tableName.)?columnName nullOperation
-	//comparisonPredicate ::= comOperand comOp comOperand
-	//comOperand ::= (tableName.)?columnName | comparableValue
-	//
-	//thus, here is another ambiguity parser have to resolve.
-	//
-	//predicate can be either nullPredicate or comparisonPredicate.
-	//both have common prefix of (tableName.)?columnName
-	//in order to decide between them, parser must know what comes after columnName. (If nullOperation, it is nullPredicate. If comOp, it is comparison-)
-	//thus, parser needs 3 extra lookahead.
-	//*/
-	//
-	//void predicate() :
-	//{
-	//}
-	//{
-	//  LOOKAHEAD(4)
-	//  nullPredicate()
-	//| comparisonPredicate()
-	//}
-	//
-	//void comparisonPredicate() :
-	//{
-	//}
-	//{
-	//  compOperand()
-	//  < COMP_OP >
-	//  compOperand()
-	//}
-	///*
-	//same type of ambiguity occurs.
-	//need one extra lookahead as in "selectedColumn()"
-	//*/
-	//void compOperand() :
-	//{
-	//}
-	//{
-	//  comparableValue()
-	//| (
-	//    LOOKAHEAD(2)
-	//    tableName()
-	//    < PERIOD >
-	//  )?
-	//  columnName()
-	//}
-	//
-	//void comparableValue() :
-	//{
-	//}
-	//{
-	//  < INT_VALUE >
-	//| < CHAR_STRING >
-	//| < DATE_VALUE >
-	//}
-	//
-	///*
-	//same type of ambiguity occurs.
-	//need one extra lookahead as in "selectedColumn()"
-	//*/
-	//void nullPredicate() :
-	//{
-	//}
-	//{
-	//  (
-	//    LOOKAHEAD(2)
-	//    tableName()
-	//    < PERIOD >
-	//  )?
-	//  columnName()
-	//  nullOperation()
-	//}
-	//
-	//void nullOperation() :
-	//{
-	//}
-	//{
-	//  < IS >
-	//  (
-	//    < NULL >
-	//  | < NOT_NULL >
-	//  )
-	//}
-	//
-	//
-	////=======================INSERT,DELETE========================
-	////=======================INSERT,DELETE========================
-	////=======================INSERT,DELETE========================
-	//
-	//
-	//void insertQuery() :
-	//{
-	//}
-	//{
-	//  < INSERT >
-	//  < INTO >
-	//  tableName()
-	//  insertColumnsAndSource()
-	//}
-	//
-	//void insertColumnsAndSource() :
-	//{
-	//}
-	//{
-	//  (
-	//    columnNameList()
-	//  )?
-	//  valueList()
-	//}
-	//
-	//void valueList() :
-	//{
-	//}
-	//{
-	//  < VALUES >
-	//  < LEFT_PAREN >
-	//  value()
-	//  (
-	//    < COMMA >
-	//    value()
-	//  )*
-	//  < RIGHT_PAREN >
-	//}
-	//
-	//void value() :
-	//{
-	//}
-	//{
-	//  < NULL >
-	//|   comparableValue()
-	//}
-	//
-	//void deleteQuery() :
-	//{
-	//}
-	//{
-	//  < DELETE >
-	//  < FROM >
-	//  tableName()
-	//  (
-	//    whereClause()
-	//  )?
-	//}
+
+
+
+//=======================INSERT,DELETE========================
+//=======================INSERT,DELETE========================
+//=======================INSERT,DELETE========================
+
+
+void insertQuery() :
+{
+}
+{
+  < INSERT >
+  < INTO >
+  tableName()
+  insertColumnsAndSource()
+}
+
+void insertColumnsAndSource() :
+{
+}
+{
+  (
+    columnNameList()
+  )?
+  valueList()
+}
+
+void valueList() :
+{
+}
+{
+  < VALUES >
+  < LEFT_PAREN >
+  value()
+  (
+    < COMMA >
+    value()
+  )*
+  < RIGHT_PAREN >
+}
+
+void value() :
+{
+}
+{
+  < NULL >
+|   comparableValue()
+}
+
+void deleteQuery() :
+{
+}
+{
+  < DELETE >
+  < FROM >
+  tableName()
+  (
+    whereClause()
+  )?
+}
+
+
+
+
+//=======================SELECT========================
+//=======================SELECT========================
+//=======================SELECT========================
+
+
+void selectQuery() :
+{
+}
+{
+  < SELECT >
+  selectList()
+  tableExpression()
+}
+
+void selectList() :
+{
+}
+{
+  < ASTERISK >
+| selectedColumn()
+  (
+    < COMMA >
+    selectedColumn()
+  )*
+}
+
+/*
+selected Column ::= (tableName.)?columnName(as columnName)?
+both tableName and columnName are "legal identifier" although named differently.
+parser cannot decide if the input identifier token is tableName or columnName.
+parser need to lookahead one more token and decide.
+Since lookahead(1) is default in javaCC, lookahead(2) is used.
+*/
+void selectedColumn() :
+{
+}
+{
+  (
+    LOOKAHEAD(2)
+    tableName()
+    < PERIOD >
+  )?
+  columnName()
+  (
+    < AS >
+    columnName()
+  )?
+}
+
+
+void tableExpression() :
+{
+}
+{
+  fromClause()
+  (
+    whereClause()
+  )?
+}
+
+void fromClause() :
+{
+}
+{
+  < FROM >
+  tableReferenceList()
+}
+
+void tableReferenceList() :
+{
+}
+{
+  referedTable()
+  (
+    < COMMA >
+    referedTable()
+  )*
+}
+
+void referedTable() :
+{
+}
+{
+  tableName()
+  (
+    < AS >
+    tableName()
+  )?
+}
+
+void whereClause() :
+{
+}
+{
+  < WHERE >
+  booleanValueExpression()
+}
+
+
+
+/*
+following is original grammar stated.
+void booleanValueExpression() :
+{
+}
+{
+  booleanTerm()
+| booleanValueExpression()
+  < OR >
+  booleanTerm()
+}
+
+void booleanTerm() :
+{
+}
+{
+  booleanFactor()
+| booleanTerm()
+  < AND >
+  booleanFactor()
+}
+
+both booleanValueExpression and booleanTerm have left recursion.
+A::=Aa|b can be modified using extra nonterminal
+1. A::= bA'
+2. A'::= aA'|e
+
+left recursion is removed from booleanValueExpression and booleanTerm using two _TEMP nonterminals
+*/
+
+void booleanValueExpression() :
+{
+}
+{
+  booleanTerm()
+  booleanValueExpression_TEMP()
+}
+
+void booleanValueExpression_TEMP() :
+{
+}
+{
+  (
+    < OR >
+    booleanTerm()
+    booleanValueExpression_TEMP()
+  )?
+}
+
+void booleanTerm() :
+{
+}
+{
+  booleanFactor()
+  booleanTerm_TEMP()
+}
+
+void booleanTerm_TEMP() :
+{
+}
+{
+  (
+    < AND >
+    booleanFactor()
+    booleanTerm_TEMP()
+  )?
+}
+
+void booleanFactor() :
+{
+}
+{
+  (
+    < NOT >
+  )?
+  booleanTest()
+}
+
+void booleanTest() :
+{
+}
+{
+  predicate()
+| parenthesizedBooleanExpression()
+}
+
+void parenthesizedBooleanExpression() :
+{
+}
+{
+  < LEFT_PAREN >
+  booleanValueExpression()
+  < RIGHT_PAREN >
+}
+/*
+predicate ::= nullPredicate | comparisonPredicate
+nullPredicate ::= (tableName.)?columnName nullOperation
+comparisonPredicate ::= comOperand comOp comOperand
+comOperand ::= (tableName.)?columnName | comparableValue
+
+thus, here is another ambiguity parser have to resolve.
+
+predicate can be either nullPredicate or comparisonPredicate.
+both have common prefix of (tableName.)?columnName
+in order to decide between them, parser must know what comes after columnName. (If nullOperation, it is nullPredicate. If comOp, it is comparison-)
+thus, parser needs 3 extra lookahead.
+*/
+
+void predicate() :
+{
+}
+{
+  LOOKAHEAD(4)
+  nullPredicate()
+| comparisonPredicate()
+}
+
+void comparisonPredicate() :
+{
+}
+{
+  compOperand()
+  < COMP_OP >
+  compOperand()
+}
+/*
+same type of ambiguity occurs.
+need one extra lookahead as in "selectedColumn()"
+*/
+void compOperand() :
+{
+}
+{
+  comparableValue()
+| (
+    LOOKAHEAD(2)
+    tableName()
+    < PERIOD >
+  )?
+  columnName()
+}
+
+void comparableValue() :
+{
+}
+{
+  < INT_VALUE >
+| < CHAR_STRING >
+| < DATE_VALUE >
+}
+
+/*
+same type of ambiguity occurs.
+need one extra lookahead as in "selectedColumn()"
+*/
+void nullPredicate() :
+{
+}
+{
+  (
+    LOOKAHEAD(2)
+    tableName()
+    < PERIOD >
+  )?
+  columnName()
+  nullOperation()
+}
+
+void nullOperation() :
+{
+}
+{
+  < IS >
+  (
+    < NULL >
+  | < NOT_NULL >
+  )
+}
+
+
