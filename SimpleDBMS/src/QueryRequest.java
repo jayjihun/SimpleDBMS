@@ -120,7 +120,9 @@ class DeleteRequest implements QueryRequest
 
 class SelectRequest implements QueryRequest
 {
-	
+	public boolean selectAll;
+	public Vector<SelectedColumn> selectedColumnList;
+	public Vector<SelectedTable> selectedTableList;
 }
 
 

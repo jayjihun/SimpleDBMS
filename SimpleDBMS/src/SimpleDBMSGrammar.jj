@@ -1186,23 +1186,41 @@ void deleteQuery() :
 
 void selectQuery() :
 {
+  Vector<SelectedColumn > selectedColumnList;
 }
 {
-  < SELECT >
-  selectList()
-  tableExpression()
+  (    
+	  < SELECT >  {request = new SelectRequest();}
+	  selectedColumnList = selectList()
+	  tableExpression()
+  )
+  (
+    {	  ((SelectRequest)request).selectedColumnList = selectedColumnList;
+	  
+    }
+  )
 }
 
-void selectList() :
+Vector<SelectedColumn > selectList() :
 {
+  boolean selectAll = false;
+  Vector<SelectedColumn > result = new Vector<SelectedColumn >(0);
+  SelectedColumn temp;
 }
 {
-  < ASTERISK >
-| selectedColumn()
+  (  
+	  < ASTERISK >  {selectAll = true;}
+	  
+	| temp = selectedColumn(){result.addElement(temp);}
+	  (
+	    < COMMA >
+	    temp = selectedColumn(){result.addElement(temp);}
+	  )*
+  )
   (
-    < COMMA >
-    selectedColumn()
-  )*
+    {		((SelectRequest)request).selectAll = selectAll;		return result;
+    }
+  )
 }
 
 /*
@@ -1212,20 +1230,30 @@ parser cannot decide if the input identifier token is tableName or columnName.
 parser need to lookahead one more token and decide.
 Since lookahead(1) is default in javaCC, lookahead(2) is used.
 */
-void selectedColumn() :
+
+SelectedColumn selectedColumn() :
 {
+  String tablename="";
+  String columnname;
+  String aliasname="";
 }
 {
+  (    
+	  (
+	    LOOKAHEAD(2)
+	    tablename = tableName()
+	    < PERIOD >
+	  )?
+	  columnname = columnName()
+	  (
+	    < AS >
+	    aliasname = columnName()
+	  )?
+  )
   (
-    LOOKAHEAD(2)
-    tableName()
-    < PERIOD >
-  )?
-  columnName()
-  (
-    < AS >
-    columnName()
-  )?
+    {		return new SelectedColumn(columnname,tablename,aliasname);
+    }
+  )
 }
 
 
@@ -1241,6 +1269,7 @@ void tableExpression() :
 
 void fromClause() :
 {
+  
 }
 {
   < FROM >
@@ -1249,26 +1278,43 @@ void fromClause() :
 
 void tableReferenceList() :
 {
+  Vector<SelectedTable > tableList = new Vector<SelectedTable >(0);
+  SelectedTable temp;
 }
 {
-  referedTable()
+  (    
+	  temp = referedTable(){tableList.addElement(temp);}   
+	  (
+	    < COMMA >
+	    temp = referedTable(){tableList.addElement(temp);}
+	  )*
+  )
   (
-    < COMMA >
-    referedTable()
-  )*
+    {
+      ((SelectRequest)request).selectedTableList = tableList;            }
+  )
 }
 
-void referedTable() :
+SelectedTable referedTable() :
 {
+  String tablename;
+  String aliasname="";
 }
 {
-  tableName()
+  (  
+	  tablename=tableName()
+	  (
+	    < AS >
+	    aliasname=tableName()
+	  )?
+  )
   (
-    < AS >
-    tableName()
-  )?
+    {		return new SelectedTable(tablename,aliasname);
+    }
+  )
 }
 
+///////////////////////
 void whereClause() :
 {
 }
