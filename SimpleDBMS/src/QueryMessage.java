@@ -283,6 +283,9 @@ class WhereAmbiguousReference implements QueryMessage
 	}
 }
 
+
+
+
 class SyntaxError implements QueryMessage
 {
 	public String toString()

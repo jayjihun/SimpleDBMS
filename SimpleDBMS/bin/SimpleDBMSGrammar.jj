@@ -17,7 +17,6 @@ import com.sleepycat.je.EnvironmentConfig;
 import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.bind.serial.SerialBinding;
 import com.sleepycat.bind.serial.*;
-
 import com.sleepycat.bind.EntryBinding;
 import com.sleepycat.je.LockMode;
 
@@ -93,7 +92,7 @@ public class SimpleDBMSParser
 	}
 
 	//connect DB
-	private static void _connectDB()
+	public static void _connectDB()
 	{
 		EnvironmentConfig envConfig = new EnvironmentConfig();
 		envConfig.setAllowCreate(true);
@@ -109,7 +108,7 @@ public class SimpleDBMSParser
 	}
 
 	//load metadata from DB
-	private static void _setAllTablesFromDB()
+	public static void _setAllTablesFromDB()
 	{
 		Cursor cursor = null;
 		DatabaseEntry key,data;
@@ -144,7 +143,7 @@ public class SimpleDBMSParser
 	}
 
 	//load tables from DB
-	private static void _setTablesFromDB()
+	public static void _setTablesFromDB()
 	{
 		tables = new Vector<Table >(0);
 		for(String atablename : alltables.tableNames)
@@ -152,7 +151,7 @@ public class SimpleDBMSParser
 	}
 
 	//must be used when the existence is 100% sure!!
-	private static Table __getTableFromDB(String tableName)
+	public static Table __getTableFromDB(String tableName)
 	{
 		Cursor cursor;
 		DatabaseEntry key,data;
@@ -180,7 +179,7 @@ public class SimpleDBMSParser
 	}
 
 	//clear DB
-	private static void __clearDB()
+	public static void __clearDB()
 	{
 		Cursor cursor = null;
 		DatabaseEntry theKey=null,theData=null;
@@ -209,7 +208,7 @@ public class SimpleDBMSParser
 
 
 	//save all tables to BDB
-	private static void __saveTablesToDB()
+	public static void __saveTablesToDB()
 	{
 		for(Table atable : tables)
 		{
@@ -237,7 +236,7 @@ public class SimpleDBMSParser
 	}
 
 	//save metadata to BDB
-	private static void __saveAllTablesToDB()
+	public static void __saveAllTablesToDB()
 	{
 		Cursor cursor=null;
 		DatabaseEntry key,data;
@@ -261,7 +260,7 @@ public class SimpleDBMSParser
 	}
 
 	//disconnect BDB
-	private static void _disconnectDB()
+	public static void _disconnectDB()
 	{
 		if(myDatabase != null)
 			myDatabase.close();
@@ -270,408 +269,11 @@ public class SimpleDBMSParser
 	}
 
 	//return Table searched from "tables" : __setTablesFromDB() must have been called in advance.
-	private static Table _getTable(String tableName)
+	public static Table _getTable(String tableName)
 	{
 		for(Table atable : tables)
 			if(atable.tableName.equals(tableName))
 				return atable;
-		return null;
-	}
-
-	public static QueryMessage createHandler()
-	{
-
-		Cursor cursor;
-		DatabaseEntry key=new DatabaseEntry(),data=new DatabaseEntry();
-		CreateTableRequest req = (CreateTableRequest)request;
-
-		Vector<String> alltablenames = alltables.tableNames;
-
-		//1. if duplicate columns appear.
-		for(String colName : req.columnNames)
-		{
-			int index = req.columnNames.indexOf(colName);
-			if(req.columnNames.indexOf(colName,index+1)!=-1)
-				return new DuplicateColumnDefError();
-		}
-
-
-		//2. if duplicate primary key definition appears
-		if(req.dupKeyError)
-			return new DuplicatePrimaryKeyDefError();
-		for(String priColName : req.primaryColumns)
-		{
-			int index = req.primaryColumns.indexOf(priColName);
-			if(req.primaryColumns.indexOf(priColName,index+1)!=-1)
-				return new DuplicateColumnDefError();
-		}
-
-		//9. if a table with the same name already exists.
-		if(alltablenames.indexOf(req.tableName)!=-1)
-			return new TableExistenceError();
-
-		//7. if primary key column is not defined.
-		for(String keyColname : req.primaryColumns)
-			if(req.columnNames.indexOf(keyColname)==-1)
-				return new NonExistingColumnDefError(keyColname);
-
-		//8. if foreign key column is not defined.
-		for(RefColumn references : req.referenceColumns)
-			for(String refingColname : references.refingNames)
-				if(req.columnNames.indexOf(refingColname)==-1)
-					return new NonExistingColumnDefError(refingColname);
-
-		//6. if foreign key refers non-existing table.
-		for(RefColumn references : req.referenceColumns)
-			if(alltablenames.indexOf(references.tableName)==-1)
-				return new ReferenceTableExistenceError();
-
-		//5. if foreign key refers non-existing column.
-		for(RefColumn references : req.referenceColumns)
-		{
-			String referedTableName = references.tableName;
-			Table referedTable = _getTable(referedTableName); 
-			for(String refedColname : references.refedNames)
-				if(referedTable.columnNames.indexOf(refedColname)==-1)
-					return new ReferenceColumnExistenceError();
-		}
-
-		//3. if foreign key type and referenced column type differ.
-		//3-1. if refed and refing column size are different.
-		for(RefColumn references : req.referenceColumns)
-			if(references.refingNames.size() != references.refedNames.size())
-				return new ReferenceTypeError();
-		//3-2. if refed and refing column type are different.
-		for(RefColumn references : req.referenceColumns)
-		{
-			String referedTableName = references.tableName;
-			Table referedTable = _getTable(referedTableName); 
-			for(String refingColname : references.refingNames)
-			{
-				int index = references.refingNames.indexOf(refingColname);
-				String correspondedColname = references.refedNames.elementAt(index);
-				Column referedColumn = null;
-				for(Column thecol : referedTable.columns)
-					if(thecol.columnName.equals(correspondedColname))
-						referedColumn = thecol;
-
-				Column referingColumn = null;
-				for(Column thecol : req.columns)
-					if(thecol.columnName.equals(refingColname))
-						referingColumn = thecol;
-
-				if(!referedColumn.dataType.equals(referingColumn.dataType))
-					return new ReferenceTypeError();
-			}
-		}
-
-		//4. if foreign key refers non-primary key column.
-		for(RefColumn references : req.referenceColumns)
-		{
-			String referedTableName = references.tableName;
-			Table referedTable = _getTable(referedTableName); 
-			for(String refingColname : references.refingNames)
-			{
-				int index = references.refingNames.indexOf(refingColname);
-				String correspondedColname = references.refedNames.elementAt(index);
-				Column referedColumn = null;
-				for(Column thecol : referedTable.columns)
-					if(thecol.columnName.equals(correspondedColname))
-						if(!thecol.isKey)
-							return new ReferenceNonPrimaryKeyError();
-			}
-		}
-
-		//10. if char length < 1
-		for(Column col : req.columns)
-			if(!col.isLenOk())
-				return new CharLengthError();
-
-		//========================All conditions met. Make a Table.==========================
-		//========================All conditions met. Make a Table.==========================
-		//========================All conditions met. Make a Table.==========================
-		//========================All conditions met. Make a Table.==========================
-		//0-1.add not null constraints to all primary columns
-		for(String priColName : req.primaryColumns)
-			for(Column col : req.columns)
-				if(col.columnName.equals(priColName))
-				{
-					col.nullOk=false;  
-					col.isKey=true;
-				}
-
-		//0-2.mark all foreign key columns.
-		for(RefColumn references : req.referenceColumns)
-			for(int i=0; i<references.refingNames.size(); i++)
-			{
-				String refingColName = references.refingNames.elementAt(i);
-				String refedColName = references.refedNames.elementAt(i);			  	for(Column col : req.columns)
-					if(col.columnName.equals(refingColName))
-					{				  
-						col.isFor=true;
-						col.referedTName = references.tableName;
-						col.referedCName = refedColName;
-					}
-			}						
-
-		//1. table : create a key-value pair!
-		//1-1. make a vector about referencing table names.
-		Vector<String> referingTableNames = new Vector<String>(0);
-		for(RefColumn refelement : req.referenceColumns)
-			referingTableNames.addElement(refelement.tableName);		  
-
-		//1-2. make a table.
-		Table newTable = new Table(req.tableName,req.columns,referingTableNames,null);//referencing, new Vector<String >(0));
-
-		//1-3. for all referenced table, add this to their lists.
-		for(RefColumn refelement : req.referenceColumns)
-		{
-			Table refedTable = _getTable(refelement.tableName);
-			if(refedTable.refered == null)
-				refedTable.refered = new Vector<String >(0);
-			refedTable.refered.addElement(req.tableName);
-		}
-
-		//2. metadata : add this table to alltables.
-		alltables.addTable(req.tableName);
-		tables.addElement(newTable);
-
-		return new CreateTableSuccess(req.tableName);
-	}
-
-	public static QueryMessage dropHandler()
-	{
-		DropTableRequest req = (DropTableRequest)request;
-		QueryMessage result = new Dummy();
-		Vector<String > tableNamesList;
-
-		//if to drop all tables.
-		if(req.all)
-		{
-			tables.removeAllElements();
-			alltables.tableNames.removeAllElements();
-			return new DropSuccessAllTables();
-		}
-		//if to drop certain tables only.
-		else
-		{ 
-			tableNamesList = req.colList;			
-			for(String tableName : tableNamesList)
-			{
-				//if table with such tablename does not exist.
-				if(alltables.tableNames.indexOf(tableName)==-1)
-				{
-					System.out.println(new NoSuchTable());
-					continue;
-				}
-
-				//start to delete
-
-				//1. check if refered.	
-				Table targetTable = _getTable(tableName);
-				if(targetTable.refered!=null)
-				{
-					//if target table is refered by another table.
-					if(targetTable.refered.size() != 0)
-					{					  
-						System.out.println(new DropReferencedTableError(tableName));
-						continue;
-					}
-				}
-
-				//2. remove this from all refering lists.
-				for(String referedTableName : targetTable.refering)
-				{
-					Table referedTable = _getTable(referedTableName);
-					if(referedTable.refered==null)
-						referedTable.refered = new Vector<String>(0);
-					referedTable.refered.remove(targetTable);
-				}
-				tables.remove(targetTable);
-				alltables.deleteTable(tableName);
-				System.out.println(new DropSuccess(tableName));
-			}
-		}
-		return result;
-	}
-
-	public static QueryMessage descHandler()
-	{
-		DescRequest req = (DescRequest)request;
-		QueryMessage result = new Dummy();
-		Vector<String > tableNamesList;
-
-		if(req.all)
-			tableNamesList = alltables.tableNames;
-		else
-			tableNamesList = req.colList;
-
-		for(String tableName : tableNamesList)
-		{
-			if(alltables.tableNames.indexOf(tableName)==-1)
-			{
-				System.out.println(new NoSuchTable());
-				continue;
-			}
-			System.out.println("--------------------------------------------------------");
-			System.out.println(_getTable(tableName));
-		}
-		System.out.println("--------------------------------------------------------");
-
-		return result;
-	}
-
-	public static QueryMessage insertHandler()
-	{		InsertRequest req = (InsertRequest)request;
-		String tableName = req.tableName;
-		Vector<String > columnNames = req.columnNames;
-		Vector<String > values = req.values;
-
-		//1. check if such table exists
-		if(!alltables.isIn(tableName))
-			return new NoSuchTable();
-
-		Table targetTable = _getTable(tableName);
-
-		//if no columnNames input, then use default column name order.
-		if(columnNames == null)
-			columnNames = targetTable.columnNames;
-
-		//2. check if size of columnNames and values are same
-		if(columnNames.size() != values.size())
-			return new InsertTypeMismatchError();
-
-		//3. check if such column exists
-		for(String columnName : columnNames)
-			if(targetTable.getColumn(columnName)==null)
-				return new InsertColumnExistenceError(columnName);
-
-		//4. check if type of columns and values are the same
-		for(int i=0; i<columnNames.size(); i++)
-		{			String columnName = columnNames.elementAt(i);
-			String value = values.elementAt(i);
-			Column column = targetTable.getColumn(columnName);
-			int type = column.dataType.type;
-
-			boolean typeMatch = true;
-			String regExp = "^[0-9]{4}-[0-9]{2}-[0-9]{2}$";
-
-			//if null, skip type checking.
-			if(value.equals("@"))
-				continue;
-			
-			switch(type)
-			{				case DataType.INT:
-					try					{
-						int tmp = Integer.parseInt(value);					}
-					catch(Exception e)					{						typeMatch = false;
-					}
-					break;				
-				case DataType.DATE:
-					typeMatch = value.matches(regExp);
-					break;				
-				case DataType.CHAR:
-					typeMatch = ((value.indexOf("\'")==0));
-					break;
-				default:
-					alert("error in inserting");
-					break;
-			}
-
-			if(!typeMatch)
-				return new InsertTypeMismatchError();
-		}
-
-		//5. check of values follow not null constraint
-		for(int i=0; i<columnNames.size(); i++)
-		{
-			String value = values.elementAt(i);
-			String columnName = columnNames.elementAt(i);
-			if(value.equals("@"))
-			{				Column column = targetTable.getColumn(columnName);
-				if(!column.nullOk)
-					return new InsertColumnNonNullableError(columnNames.elementAt(i));
-			}
-		}
-
-		//6. check of values follow primary key constraint
-		//7. check of values follow foreign key constraint
-		for(int i=0; i<columnNames.size(); i++)
-		{
-			String columnName = columnNames.elementAt(i);
-			String value = values.elementAt(i);
-			Column column = targetTable.getColumn(columnName);
-			
-			//6 : if primary key.
-			if(column.isKey)
-			{
-				//if string, trim '
-				if(column.dataType.type == DataType.CHAR)
-					value = value.substring(1,value.length()-1);
-					
-				//check if this value already exist.
-				Vector<String > projection = targetTable.getRecords(columnName);
-				if(projection.indexOf(value) != -1)
-					return new InsertDuplicatePrimaryKeyError();
-			}
-			
-			//7 : if foreign key.
-			if(column.isFor)
-			{
-			  /*
-			  if this value is null, skip the test.
-			  if not null, test if this value exists in referenced table.
-			  */
-			  	//if null,
-			  	if(value.equals("@"))
-			  		continue;
-
-			  	//if not null,			  				Table refedTable = _getTable(column.referedTName);
-				Vector<String > projection = refedTable.getRecords(column.referedCName);
-				if(projection.indexOf(value) == -1)
-					return new InsertReferentialIntegrityError();
-			}
-		}
-		//========================All conditions met. Make a Record.==========================
-		//========================All conditions met. Make a Record.==========================
-		//========================All conditions met. Make a Record.==========================
-		//========================All conditions met. Make a Record.==========================
-		
-		//1. make a record in pre-defined order.
-		Vector<String > record = new Vector<String >(0);
-		Vector<String > table_columnNames = targetTable.columnNames;
-
-		for(String columnName : table_columnNames)
-		{			int index = columnNames.indexOf(columnName);
-			Column column = targetTable.getColumn(columnName);
-			int type = column.dataType.type;
-			String value = values.elementAt(index);
-
-			//if data type is varchar, strip ' marks. + trim if too long.
-			if(type == DataType.CHAR)
-			{				if(!value.equals("@"))
-				{				  	value = value.substring(1,value.length()-1);
-				  	if(value.length() >column.dataType.length)						value = value.substring(0,column.dataType.length);
-				}				
-			}
-
-			//append to the record.
-			record.addElement(value);
-		}
-		
-		//2. append the record to the table
-		targetTable.records.addElement(record);
-		return new InsertResult();
-	}
-	
-
-	public static QueryMessage deleteHandler()
-	{		DeleteRequest req = (DeleteRequest)request;
-		return null;
-	}
-
-	public static QueryMessage selectHandler()
-	{		SelectRequest req = (SelectRequest)request;
 		return null;
 	}
 }
@@ -788,33 +390,33 @@ TOKEN :
 		(
 				createTableQuery()
 				{
-					mes = createHandler();
+					mes = request.execute(alltables,tables);
 					request = null;
 
 				}
 				| dropTableQuery()
 				{
-					mes = dropHandler();
+					mes = request.execute(alltables,tables);
 					request = null;
 				}
 				| descQuery()
 				{
-					mes = descHandler();
+					mes = request.execute(alltables,tables);
 					request = null;
 				}
 				| insertQuery()
 				{
-					mes = insertHandler();
+					mes = request.execute(alltables,tables);
 					request = null;
 				}
 				| deleteQuery()
 				{
-					mes = deleteHandler();
+					mes = request.execute(alltables,tables);
 					request = null;
 				}
 				| selectQuery()
 				{
-					mes = selectHandler();
+					mes = request.execute(alltables,tables);
 					request = null;
 				}
 		)
@@ -830,20 +432,12 @@ TOKEN :
 		String tName;
 	}
 	{
-		(
-
 				< CREATE >
 				< TABLE >
 				{					request = new CreateTableRequest();
 				}
-				tName = tableName()
+				tName = tableName(){((CreateTableRequest)request).tableName = tName;}		
 				tableElementList()
-				)
-		(
-				{
-					((CreateTableRequest)request).tableName = tName;
-				}
-				)
 	}
 
 	void tableElementList() :
@@ -883,7 +477,7 @@ TOKEN :
 						)?
 								{
 			((CreateTableRequest)request).columnNames.addElement(colName);
-			((CreateTableRequest)request).columns.addElement(new Column(colName,datatype,nullOk,false,false));
+			((CreateTableRequest)request).columns.addElement(new Column(colName,datatype,nullOk,false,false,((CreateTableRequest)request).tableName));
 								}
 	}
 
@@ -1097,10 +691,10 @@ void insertQuery() :
 void insertColumnsAndSource() :
 {
   Vector<String > columnNames = null;
-  Vector<String > values = null;
+  Vector<Value > values = null;
 }
 {
-  (    
+  (    
 	  (
 	    columnNames = columnNameList()
 	  )?
@@ -1114,10 +708,10 @@ void insertColumnsAndSource() :
   )
 }
 
-Vector<String > valueList() :
+Vector<Value > valueList() :
 {
-  Vector<String > result = new Vector<String >(0);
-  String oneinput;
+  Vector<Value > result = new Vector<Value >(0);
+  Value oneinput;
 }
 {
   (    
@@ -1136,19 +730,22 @@ Vector<String > valueList() :
   )
 }
 
-String value() :
+Value value() :
 {
-  String result;
+  Value result = null;
+  ComparableValue cv = null;
 }
 {
   (	    
-	  < NULL >	  {
-	    result = "@";	  }
-	  | result = comparableValue()
+	  < NULL >{result = new Value();}
+	  | cv = comparableValue()
   )
   (
     {
-      return result;          }    
+      if(result==null)
+      	return cv;
+      else
+      	return result;          }    
   )
 }
 
@@ -1314,16 +911,20 @@ SelectedTable referedTable() :
   )
 }
 
-///////////////////////
 void whereClause() :
 {
+  BooleanValueExpression bve;
 }
 {
-  < WHERE >
-  booleanValueExpression()
+  (    
+	  < WHERE >
+	  bve = booleanValueExpression()
+  )
+  (
+    {
+      ((SelectRequest)request).bve = bve;    }
+  )
 }
-
-
 
 /*
 following is original grammar stated.
@@ -1348,76 +949,138 @@ void booleanTerm() :
 }
 
 both booleanValueExpression and booleanTerm have left recursion.
-A::=Aa|b can be modified using extra nonterminal
-1. A::= bA'
+A::=Aa|a can be modified using extra nonterminal
+1. A::= aA'
 2. A'::= aA'|e
 
 left recursion is removed from booleanValueExpression and booleanTerm using two _TEMP nonterminals
 */
 
-void booleanValueExpression() :
+BooleanValueExpression booleanValueExpression() :
 {
+  BooleanTerm bt;
+  Vector<BooleanTerm > bts;
 }
 {
-  booleanTerm()
-  booleanValueExpression_TEMP()
+  (    
+	  bt = booleanTerm()
+	  bts = booleanValueExpression_TEMP()
+  )
+  (    {      bts.addElement(bt);
+      return new BooleanValueExpression(bts);
+    }
+  )
 }
 
-void booleanValueExpression_TEMP() :
+Vector<BooleanTerm > booleanValueExpression_TEMP() :
 {
+  BooleanTerm bt=null;
+  Vector<BooleanTerm > result=null;
+}
+{ 
+  (    
+	  (
+	    < OR >
+	    bt = booleanTerm()
+	    result = booleanValueExpression_TEMP()
+	  )?
+  )
+  (    {      if(result == null)
+      	result = new Vector<BooleanTerm >(0);
+      else
+      	result.addElement(bt);
+      return result;
+    }
+  )
+}
+
+BooleanTerm booleanTerm() :
+{
+  BooleanFactor bf;
+  Vector<BooleanFactor > bfs;
 }
 {
   (
-    < OR >
-    booleanTerm()
-    booleanValueExpression_TEMP()
-  )?
+	  bf = booleanFactor()
+	  bfs = booleanTerm_TEMP()
+  )
+  (    {      bfs.addElement(bf);
+      return new BooleanTerm(bfs);
+    }
+  )
 }
 
-void booleanTerm() :
+Vector<BooleanFactor > booleanTerm_TEMP() :
 {
+  BooleanFactor bf=null;
+  Vector<BooleanFactor > result = null;  
 }
 {
-  booleanFactor()
-  booleanTerm_TEMP()
+  (    
+	  (
+	    < AND >
+	    bf = booleanFactor()
+	    result = booleanTerm_TEMP()
+	  )?
+  )
+  (    {      if(result == null)
+      	result = new Vector<BooleanFactor >(0);
+      else
+      	result.addElement(bf);
+      return result;
+    }
+  )
 }
 
-void booleanTerm_TEMP() :
+BooleanFactor booleanFactor() :
 {
+  boolean isNot=false;
+  BooleanTest test;
+}
+{
+  (    
+	  (
+	    < NOT >{isNot = true;}
+	  )?
+	  test = booleanTest()
+  )
+  (    {      return new BooleanFactor(isNot,test);
+    }
+  )
+}
+
+BooleanTest booleanTest() :
+{
+  int type;
+  Predicate pred=null;
+  BooleanValueExpression bve=null;
 }
 {
   (
-    < AND >
-    booleanFactor()
-    booleanTerm_TEMP()
-  )?
-}
-
-void booleanFactor() :
-{
-}
-{
+	  pred = predicate(){type = BooleanTest.PREDICATE;}
+	| bve = parenthesizedBooleanExpression(){type = BooleanTest.EXPRESSION;}
+  )
   (
-    < NOT >
-  )?
-  booleanTest()
+    {
+      return new BooleanTest(type,pred,bve);
+    }      
+  )
 }
 
-void booleanTest() :
+BooleanValueExpression parenthesizedBooleanExpression() :
 {
+  BooleanValueExpression result;
 }
 {
-  predicate()
-| parenthesizedBooleanExpression()
-}
-
-void parenthesizedBooleanExpression() :
-{
-}
-{
-  < LEFT_PAREN >
-  booleanValueExpression()
-  < RIGHT_PAREN >
+  (    
+	  < LEFT_PAREN >
+	  result = booleanValueExpression()
+	  < RIGHT_PAREN >
+  )
+  (
+    {
+      return result;    }
+  )
 }
 /*
 predicate ::= nullPredicate | comparisonPredicate
@@ -1433,83 +1096,130 @@ in order to decide between them, parser must know what comes after columnName. (
 thus, parser needs 3 extra lookahead.
 */
 
-void predicate() :
+Predicate predicate() :
 {
+  Predicate result=null;
 }
 {
-  LOOKAHEAD(4)
-  nullPredicate()
-| comparisonPredicate()
+  (    
+	  LOOKAHEAD(4)
+	  result = nullPredicate()
+	| result = comparisonPredicate()
+  )
+(
+  {
+    return result;
+  }
+)
 }
 
-void comparisonPredicate() :
+ComparisonPredicate comparisonPredicate() :
 {
+  CompareOperand lhs,rhs;
+  CompareOperator op;
+  Token n;
 }
 {
-  compOperand()
-  < COMP_OP >
-  compOperand()
+  (    
+	  lhs = compOperand()
+	  n = < COMP_OP >
+	  rhs = compOperand()
+  )
+  (
+    {		op = new CompareOperator(n.image);
+		return new ComparisonPredicate(lhs,op,rhs);
+    }
+  )
 }
 /*
 same type of ambiguity occurs.
 need one extra lookahead as in "selectedColumn()"
 */
-void compOperand() :
+CompareOperand compOperand() :
 {
+  ComparableValue v=null;
+  String tname="";
+  String cname="";
+  boolean isCV=false;
+  boolean isTV=false;
 }
 {
-  comparableValue()
-| (
-    LOOKAHEAD(2)
-    tableName()
-    < PERIOD >
-  )?
-  columnName()
+  (    
+	  v = comparableValue(){isCV = true;}
+	| (
+	    LOOKAHEAD(2)
+	    tname = tableName(){isTV=true;}
+	    < PERIOD >
+	  )?
+	  cname = columnName()
+  )
+  (
+    {		return new CompareOperand(v,tname,cname,isTV,isCV);
+    }
+  )
 }
 
-String comparableValue() :
+ComparableValue comparableValue() :
 {
-  String result = "";
+  int type;
   Token n;
 }
 {
   (   
-	  n = < INT_VALUE >
-	| n = < CHAR_STRING >
-	| n = < DATE_VALUE >
+	  n = < INT_VALUE >{type = DataType.INT;}
+	| n = < CHAR_STRING >{type = DataType.CHAR;}
+	| n = < DATE_VALUE >{type = DataType.DATE;}
 )
 (
-  {	return n.image;
-  }
+  {
+    int length =0;
+    if(type == DataType.CHAR)
+    	length = n.image.length();	return new ComparableValue(n.image,type,length-2);
+  }
 )
-
 }
 
 /*
 same type of ambiguity occurs.
 need one extra lookahead as in "selectedColumn()"
 */
-void nullPredicate() :
+NullPredicate nullPredicate() :
 {
+  String tname="";
+  String cname="";
+  boolean istnameV=false;
+  boolean isNot;
 }
 {
+  (    
+	  (
+	    LOOKAHEAD(2)
+	    tname = tableName() {istnameV = true;}
+	    < PERIOD >
+	  )?
+	  cname = columnName()
+	  isNot = nullOperation()
+  )
   (
-    LOOKAHEAD(2)
-    tableName()
-    < PERIOD >
-  )?
-  columnName()
-  nullOperation()
+    {
+      return new NullPredicate(tname,cname,istnameV,isNot);    }
+  )
 }
 
-void nullOperation() :
+boolean nullOperation() :
 {
+  boolean isNot = false;
 }
 {
-  < IS >
-  (
-    < NULL >
-  | < NOT_NULL >
+  (    
+	  < IS >
+	  (
+	    < NULL >    {isNot = false;}
+	  | < NOT_NULL >{isNot = true;}
+	  )
+  )
+  (	{	  return isNot;
+	}
   )
 }
 

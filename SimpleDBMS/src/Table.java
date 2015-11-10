@@ -42,12 +42,18 @@ public class Table implements Serializable
 	public String tableName;
 	public Vector<String> columnNames;
 	public Vector<Column> columns;
-	public Vector<Vector<String>> records;
-	
-	
-	
+	public Vector<Vector<String>> records;	
 	public Vector<String> refering;
 	public Vector<String> refered;
+	public Table()
+	{
+		tableName="";
+		columnNames=new Vector<String>(0);
+		columns=new Vector<Column>(0);
+		records=new Vector<Vector<String>>(0);
+		refering = null;
+		refered = null;
+	}
 	
 	public Table(String tableName, Vector<Column> column, Vector<String> refering, Vector<String> refered)
 	{
@@ -56,6 +62,7 @@ public class Table implements Serializable
 		this.refering = refering;
 		this.refered = refered;
 		this.columnNames = new Vector<String>(0);
+		records=new Vector<Vector<String>>(0);
 		for(Column col : column)
 			columnNames.addElement(col.columnName);
 	}
@@ -103,6 +110,17 @@ public class Table implements Serializable
 		return result;
 	}
 	
+	public Table aliasTableName(String alias)
+	{
+		Vector<Column> columns = new Vector<Column>(0);
+		for(Column ori_col : this.columns)
+			columns.addElement(new Column(ori_col.columnName,ori_col.dataType,ori_col.nullOk,ori_col.isKey,ori_col.isFor,alias));
+
+		Table result = new Table(alias,columns,refering,refered);
+		result.records = this.records;
+		return result;		
+	}
+	
 	public Vector<String> getRecords(String colName)
 	{
 		//check if all column names are valid.
@@ -119,6 +137,58 @@ public class Table implements Serializable
 		}		
 		return result;
 	}
+	
+	public static Table cartesian(Table a, Table b,String bAlias)
+	{
+		if(a==null || b==null)
+			return null;
+		Table result = new Table();
+		
+		if(bAlias.length()==0)
+			bAlias = b.tableName;
+		
+		result.tableName = "@intermediate";
+		for(String columnName_A : a.columnNames)
+			result.columnNames.addElement(columnName_A);
+		for(String columnName_B : b.columnNames)
+			result.columnNames.addElement(columnName_B);
+		for(Column column_A : a.columns)
+			result.columns.addElement(column_A);
+		for(Column column_B : a.columns)
+		{
+			Column column_B_new = new Column(column_B.columnName, column_B.dataType, column_B.nullOk, column_B.isKey, column_B.isFor,bAlias);
+			result.columns.addElement(column_B_new);
+		}
+		for(Vector<String> record_A : a.records)
+		{
+			for(Vector<String> record_B : b.records)
+			{
+				Vector<String> newRecord = (Vector<String>)record_A.clone();
+				for(String items : record_B)
+					newRecord.addElement(items);
+				result.records.addElement(newRecord);
+			}				
+		}
+		return result;
+	}
+	
+	public String recordString()
+	{
+		String result = "";
+		for(String columnName : columnNames)
+			result += columnName+" ";
+		result+="\n";
+		for(Vector<String> record : records)
+		{
+			for(String item : record)
+			{
+				result+=item+" ";
+			}
+			result+="\n";
+		}
+		result+="\n";
+		return result;
+	}
 }
 
 class DataType implements Serializable
@@ -128,6 +198,7 @@ class DataType implements Serializable
 	public static final int INT = 1;
 	public static final int CHAR = 2;
 	public static final int DATE = 3;
+	
 	public int type;
 	public int length;//for char type
 
@@ -143,13 +214,18 @@ class DataType implements Serializable
 		if(!(t instanceof DataType))
 			return false;
 		DataType tmp = (DataType)t;
+		return this.type == tmp.type;
+		/*
+		
+		DataType tmp = (DataType)t;
 		if(t == this)
 			return true;
 		if(type != tmp.type)
 			return false;
 		if(type ==CHAR && (length != tmp.length))
 			return false;
-		return true;		
+		return true;
+		*/		
 	}
 	public String toString()
 	{
@@ -172,6 +248,7 @@ class DataType implements Serializable
 class Column implements Serializable
 {
 	private static final long serialVersionUID = 5L;
+	String tableName;
 	String columnName;
 	DataType dataType;
 	boolean nullOk;
@@ -180,7 +257,7 @@ class Column implements Serializable
 	String referedTName;
 	String referedCName;
 	
-	public Column(String columnName, DataType dataType, boolean nullOk, boolean isKey, boolean isFor)	
+	public Column(String columnName, DataType dataType, boolean nullOk, boolean isKey, boolean isFor,String tableName)	
 	{
 		this.columnName = columnName;
 		this.dataType = dataType;
@@ -189,6 +266,7 @@ class Column implements Serializable
 		this.isFor = isFor;
 		this.referedTName="";
 		this.referedCName="";
+		this.tableName = tableName;
 	}
 	public boolean isLenOk()
 	{
