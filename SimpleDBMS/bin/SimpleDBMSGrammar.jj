@@ -402,10 +402,17 @@ public class SimpleDBMSParser
 
 		//0-2.mark all foreign key columns.
 		for(RefColumn references : req.referenceColumns)
-			for(String refColName : references.refingNames)
-				for(Column col : req.columns)
-					if(col.columnName.equals(refColName))
+			for(int i=0; i<references.refingNames.size(); i++)
+			{
+				String refingColName = references.refingNames.elementAt(i);
+				String refedColName = references.refedNames.elementAt(i);			  	for(Column col : req.columns)
+					if(col.columnName.equals(refingColName))
+					{				  
 						col.isFor=true;
+						col.referedTName = references.tableName;
+						col.referedCName = refedColName;
+					}
+			}						
 
 		//1. table : create a key-value pair!
 		//1-1. make a vector about referencing table names.
@@ -512,6 +519,160 @@ public class SimpleDBMSParser
 		System.out.println("--------------------------------------------------------");
 
 		return result;
+	}
+
+	public static QueryMessage insertHandler()
+	{		InsertRequest req = (InsertRequest)request;
+		String tableName = req.tableName;
+		Vector<String > columnNames = req.columnNames;
+		Vector<String > values = req.values;
+
+		//1. check if such table exists
+		if(!alltables.isIn(tableName))
+			return new NoSuchTable();
+
+		Table targetTable = _getTable(tableName);
+
+		//if no columnNames input, then use default column name order.
+		if(columnNames == null)
+			columnNames = targetTable.columnNames;
+
+		//2. check if size of columnNames and values are same
+		if(columnNames.size() != values.size())
+			return new InsertTypeMismatchError();
+
+		//3. check if such column exists
+		for(String columnName : columnNames)
+			if(targetTable.getColumn(columnName)==null)
+				return new InsertColumnExistenceError(columnName);
+
+		//4. check if type of columns and values are the same
+		for(int i=0; i<columnNames.size(); i++)
+		{			String columnName = columnNames.elementAt(i);
+			String value = values.elementAt(i);
+			Column column = targetTable.getColumn(columnName);
+			int type = column.dataType.type;
+
+			boolean typeMatch = true;
+			String regExp = "^[0-9]{4}-[0-9]{2}-[0-9]{2}$";
+
+			//if null, skip type checking.
+			if(value.equals("@"))
+				continue;
+			
+			switch(type)
+			{				case DataType.INT:
+					try					{
+						int tmp = Integer.parseInt(value);					}
+					catch(Exception e)					{						typeMatch = false;
+					}
+					break;				
+				case DataType.DATE:
+					typeMatch = value.matches(regExp);
+					break;				
+				case DataType.CHAR:
+					typeMatch = ((value.indexOf("\'")==0));
+					break;
+				default:
+					alert("error in inserting");
+					break;
+			}
+
+			if(!typeMatch)
+				return new InsertTypeMismatchError();
+		}
+
+		//5. check of values follow not null constraint
+		for(int i=0; i<columnNames.size(); i++)
+		{
+			String value = values.elementAt(i);
+			String columnName = columnNames.elementAt(i);
+			if(value.equals("@"))
+			{				Column column = targetTable.getColumn(columnName);
+				if(!column.nullOk)
+					return new InsertColumnNonNullableError(columnNames.elementAt(i));
+			}
+		}
+
+		//6. check of values follow primary key constraint
+		//7. check of values follow foreign key constraint
+		for(int i=0; i<columnNames.size(); i++)
+		{
+			String columnName = columnNames.elementAt(i);
+			String value = values.elementAt(i);
+			Column column = targetTable.getColumn(columnName);
+			
+			//6 : if primary key.
+			if(column.isKey)
+			{
+				//if string, trim '
+				if(column.dataType.type == DataType.CHAR)
+					value = value.substring(1,value.length()-1);
+					
+				//check if this value already exist.
+				Vector<String > projection = targetTable.getRecords(columnName);
+				if(projection.indexOf(value) != -1)
+					return new InsertDuplicatePrimaryKeyError();
+			}
+			
+			//7 : if foreign key.
+			if(column.isFor)
+			{
+			  /*
+			  if this value is null, skip the test.
+			  if not null, test if this value exists in referenced table.
+			  */
+			  	//if null,
+			  	if(value.equals("@"))
+			  		continue;
+
+			  	//if not null,			  				Table refedTable = _getTable(column.referedTName);
+				Vector<String > projection = refedTable.getRecords(column.referedCName);
+				if(projection.indexOf(value) == -1)
+					return new InsertReferentialIntegrityError();
+			}
+		}
+		//========================All conditions met. Make a Record.==========================
+		//========================All conditions met. Make a Record.==========================
+		//========================All conditions met. Make a Record.==========================
+		//========================All conditions met. Make a Record.==========================
+		
+		//1. make a record in pre-defined order.
+		Vector<String > record = new Vector<String >(0);
+		Vector<String > table_columnNames = targetTable.columnNames;
+
+		for(String columnName : table_columnNames)
+		{			int index = columnNames.indexOf(columnName);
+			Column column = targetTable.getColumn(columnName);
+			int type = column.dataType.type;
+			String value = values.elementAt(index);
+
+			//if data type is varchar, strip ' marks. + trim if too long.
+			if(type == DataType.CHAR)
+			{				if(!value.equals("@"))
+				{				  	value = value.substring(1,value.length()-1);
+				  	if(value.length() >column.dataType.length)						value = value.substring(0,column.dataType.length);
+				}				
+			}
+
+			//append to the record.
+			record.addElement(value);
+		}
+		
+		//2. append the record to the table
+		targetTable.records.addElement(record);
+		return new InsertResult();
+	}
+	
+
+	public static QueryMessage deleteHandler()
+	{		DeleteRequest req = (DeleteRequest)request;
+		return null;
+	}
+
+	public static QueryMessage selectHandler()
+	{		SelectRequest req = (SelectRequest)request;
+		return null;
 	}
 }
 
@@ -641,12 +802,27 @@ TOKEN :
 					mes = descHandler();
 					request = null;
 				}
-				)
+				| insertQuery()
+				{
+					mes = insertHandler();
+					request = null;
+				}
+				| deleteQuery()
+				{
+					mes = deleteHandler();
+					request = null;
+				}
+				| selectQuery()
+				{
+					mes = selectHandler();
+					request = null;
+				}
+		)
 		(
 				{
 					return mes;
 				}
-				)  
+		)  
 	}
 
 	void createTableQuery() :
@@ -890,6 +1066,16 @@ TOKEN :
 
 
 
+//==========================================PROJECT3==========================================
+//==========================================PROJECT3==========================================
+//==========================================PROJECT3==========================================
+//==========================================PROJECT3==========================================
+//==========================================PROJECT3==========================================
+//==========================================PROJECT3==========================================
+//==========================================PROJECT3==========================================
+//==========================================PROJECT3==========================================
+
+
 //=======================INSERT,DELETE========================
 //=======================INSERT,DELETE========================
 //=======================INSERT,DELETE========================
@@ -897,56 +1083,97 @@ TOKEN :
 
 void insertQuery() :
 {
+  String tabName;
 }
 {
   < INSERT >
   < INTO >
-  tableName()
+  {	request = new InsertRequest();
+  }
+  tabName = tableName()   {((InsertRequest)request).tableName = tabName;  }
   insertColumnsAndSource()
 }
 
 void insertColumnsAndSource() :
 {
+  Vector<String > columnNames = null;
+  Vector<String > values = null;
 }
 {
+  (    
+	  (
+	    columnNames = columnNameList()
+	  )?
+	  values = valueList()
+  )
   (
-    columnNameList()
-  )?
-  valueList()
+    {      
+      ((InsertRequest)request).columnNames = columnNames;
+      ((InsertRequest)request).values = values;
+    }
+  )
 }
 
-void valueList() :
+Vector<String > valueList() :
 {
+  Vector<String > result = new Vector<String >(0);
+  String oneinput;
 }
 {
+  (    
   < VALUES >
   < LEFT_PAREN >
-  value()
+  oneinput = value()  {result.addElement(oneinput); }
   (
     < COMMA >
-    value()
+    oneinput = value()  {result.addElement(oneinput); }
   )*
   < RIGHT_PAREN >
+  )
+  (
+	{		return result;
+	}
+  )
 }
 
-void value() :
+String value() :
 {
+  String result;
 }
 {
-  < NULL >
-|   comparableValue()
+  (	    
+	  < NULL >	  {
+	    result = "@";	  }
+	  | result = comparableValue()
+  )
+  (
+    {
+      return result;          }    
+  )
 }
+
+
+//=======================DELETE========================
+//=======================DELETE========================
+//=======================DELETE========================
 
 void deleteQuery() :
 {
 }
 {
-  < DELETE >
-  < FROM >
-  tableName()
-  (
-    whereClause()
-  )?
+	(	    
+	  < DELETE >
+	  < FROM >  {request = new DeleteRequest(); System.out.println("FUCK");}
+	  tableName()
+	  (
+	    whereClause()
+	    {	        ((DeleteRequest)request).delAll=false;	    }
+	  )?
+	)
+	(
+	  {		
+	  }
+	)  
 }
 
 
@@ -1194,13 +1421,22 @@ void compOperand() :
   columnName()
 }
 
-void comparableValue() :
+String comparableValue() :
 {
+  String result = "";
+  Token n;
 }
 {
-  < INT_VALUE >
-| < CHAR_STRING >
-| < DATE_VALUE >
+  (   
+	  n = < INT_VALUE >
+	| n = < CHAR_STRING >
+	| n = < DATE_VALUE >
+)
+(
+  {	return n.image;
+  }
+)
+
 }
 
 /*

@@ -11,9 +11,9 @@ class RefColumn
 	public Vector<String> refingNames;
 	public String tableName;
 	public Vector<String> refedNames;
-	public RefColumn(Vector<String> refincC, String tName, Vector<String> refedC)
+	public RefColumn(Vector<String> refingC, String tName, Vector<String> refedC)
 	{
-		refingNames = refincC;
+		refingNames = refingC;
 		tableName = tName;
 		refedNames = refedC;
 	}
@@ -95,17 +95,33 @@ class DescRequest implements QueryRequest
 	}
 }
 
+class InsertRequest implements QueryRequest
+{
+	String tableName;
+	Vector<String> columnNames;
+	Vector<String> values;
+	InsertRequest()
+	{
+		tableName = "";
+		columnNames = null;
+		values = new Vector<String>(0);
+	}
+}
+
+class DeleteRequest implements QueryRequest
+{
+	public boolean delAll;
+	
+	public DeleteRequest()
+	{
+		delAll = true;
+	}
+}
+
 class SelectRequest implements QueryRequest
 {
 	
 }
 
-class DeleteRequest implements QueryRequest
-{
-	
-}
 
-class InsertRequest implements QueryRequest
-{
-	
-}
+

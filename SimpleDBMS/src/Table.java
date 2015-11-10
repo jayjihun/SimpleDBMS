@@ -18,6 +18,10 @@ class AllTables implements Serializable
 	{
 		tableNames.remove(tablename);
 	}
+	boolean isIn(String tableName)
+	{
+		return tableNames.indexOf(tableName) != -1;
+	}
 	
 	public String toString()
 	{
@@ -64,6 +68,55 @@ public class Table implements Serializable
 		for(Column col : columns)
 			result+= col +"\n";
 		
+		return result;
+	}
+	
+	public Column getColumn(String colName)
+	{
+		int index = columnNames.indexOf(colName);
+		if(index == -1)
+			return null;
+		return columns.elementAt(index);
+	}
+	
+	public Vector<Vector<String>> getRecords(Vector<String> colNames)
+	{
+		//check if all column names are valid.
+		for(String colName : colNames)
+			if(columnNames.indexOf(colName) == -1)
+				return null;
+		
+		//column names all valid. now make tuples.
+		Vector<Vector<String>> result = new Vector<Vector<String>>(0);
+		for(Vector<String> record : records)
+		{
+			Vector<String> outputRecord = new Vector<String>(0);
+			for(String colName : colNames)
+			{
+				int index = columnNames.indexOf(colName);
+				String value = record.elementAt(index);
+				outputRecord.addElement(value);
+			}					
+			result.addElement(outputRecord);
+		}
+		
+		return result;
+	}
+	
+	public Vector<String> getRecords(String colName)
+	{
+		//check if all column names are valid.
+		if(columnNames.indexOf(colName) == -1)
+			return null;
+		
+		//column names all valid. now make tuples.
+		Vector<String> result = new Vector<String>(0);
+		int index = columnNames.indexOf(colName);
+		for(Vector<String> record : records)
+		{	
+				String value = record.elementAt(index);
+				result.addElement(value);
+		}		
 		return result;
 	}
 }
@@ -124,14 +177,18 @@ class Column implements Serializable
 	boolean nullOk;
 	boolean isKey;
 	boolean isFor;
+	String referedTName;
+	String referedCName;
 	
-	public Column(String columnName, DataType dataType, boolean nullOk, boolean isKey, boolean isFor)
+	public Column(String columnName, DataType dataType, boolean nullOk, boolean isKey, boolean isFor)	
 	{
 		this.columnName = columnName;
 		this.dataType = dataType;
 		this.nullOk = nullOk;
 		this.isKey = isKey;
 		this.isFor = isFor;
+		this.referedTName="";
+		this.referedCName="";
 	}
 	public boolean isLenOk()
 	{
