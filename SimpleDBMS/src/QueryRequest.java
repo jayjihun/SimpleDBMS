@@ -1,3 +1,4 @@
+import java.util.ConcurrentModificationException;
 import java.util.Vector;
 
 public interface QueryRequest
@@ -718,8 +719,10 @@ class DeleteRequest implements QueryRequest
 			return new NoSuchTable();
 		
 		Vector<Vector<String>> records = targetTable.records;
+		boolean amIRefered = false;
+		if(targetTable.refered!=null)
+			amIRefered = (targetTable.refered.size() != 0);
 		
-		boolean amIRefered = (targetTable.refered.size() != 0);
 		if(amIRefered)
 		{
 			//2. is all columns refering me nullable?????
@@ -746,41 +749,75 @@ class DeleteRequest implements QueryRequest
 			
 			if(isAllReferingsNullable)
 			{
+				for(String referingTableName : targetTable.refered)
+				{
+					Table referingTable = SimpleDBMSParser._getTable(referingTableName);
+					Vector<Column> columns = referingTable.columns;
+					for(Column column : columns)
+					{
+						if(column.referedTName.equals(tname))
+						{
+							int index = columns.indexOf(column);
+							for(Vector<String> record : referingTable.records)
+								record.set(index, "@");
+						}
+					}
+				}
 				/*
 				 * if all my referings are nullable, then make the records that refers my record nulls!!!!!! 
 				 */
-				
-			}
-		}
-		
-		
-		
-		for(Vector<String> record : records)
-		{
-			boolean delFinal = false;
-			
-			if(delAll)
-			{
-				delFinal = true;
 			}
 			else
 			{
-				//1. does any table refer to me????
-				boolean amIRefered = (targetTable.refered.size() == 0);
-
-				
-				if(shouldIEvalPredicate)
+				shouldIEvalPredicate = false;
+			}
+		}
+		Vector<String> next = records.firstElement();
+		
+		int recordNum = records.size();
+		int pointer = 0;
+		for(int processed = 0; processed<recordNum; processed++)
+		{
+			Vector<String> record = records.elementAt(pointer);
+			boolean delFinal = false;			
+			if(delAll)
+				delFinal = true;
+			else
+			{				
+				ExBoolean toDel = null;
+				try
 				{
-					ExBoolean toDel = bve.evaluate(targetTable.columns,record);
-					delFinal = toDel.convert();
+					toDel = bve.evaluate(targetTable.columns,record);
 				}
-				
+				catch(PredicateException e)
+				{
+					return e.mes;
+				}
+				delFinal = toDel.convert();				
 			}
 			if(delFinal)
-				records.remove(record);			
+			{
+				if(shouldIEvalPredicate)
+				{
+					records.remove(record);
+					deleteCount++;
+				}
+				else
+				{
+					failDelCount++;
+					pointer++;
+				}
+			}
+			else
+			{
+				pointer++;
+			}
 		}
 		
-		return null;
+		if(failDelCount!=0)
+			System.out.println(new DeleteReferentialIntegrityPassed(failDelCount));
+		
+		return new DeleteResult(deleteCount);
 	}
 }
 
