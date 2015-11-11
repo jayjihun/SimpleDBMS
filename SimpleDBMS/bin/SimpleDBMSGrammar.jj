@@ -756,21 +756,26 @@ Value value() :
 
 void deleteQuery() :
 {
+  String tname="";
+  boolean delAll=true;
+  BooleanValueExpression bve=null;
 }
 {
 	(	    
 	  < DELETE >
-	  < FROM >  {request = new DeleteRequest(); System.out.println("FUCK");}
-	  tableName()
+	  < FROM >  {request = new DeleteRequest();}
+	  tname = tableName()
 	  (
-	    whereClause()
-	    {	        ((DeleteRequest)request).delAll=false;	    }
+	    bve = whereClause()
 	  )?
 	)
 	(
-	  {		
+	  {
+		((DeleteRequest)request).delAll=(bve==null);
+		((DeleteRequest)request).bve = bve;
+		((DeleteRequest)request).tname = tname;
 	  }
-	)  
+	)  
 }
 
 
@@ -800,13 +805,13 @@ void selectQuery() :
 
 Vector<SelectedColumn > selectList() :
 {
-  boolean selectAll = false;
+  boolean columnAll = false;
   Vector<SelectedColumn > result = new Vector<SelectedColumn >(0);
   SelectedColumn temp;
 }
 {
   (  
-	  < ASTERISK >  {selectAll = true;}
+	  < ASTERISK >  {columnAll = true;}
 	  
 	| temp = selectedColumn(){result.addElement(temp);}
 	  (
@@ -815,7 +820,7 @@ Vector<SelectedColumn > selectList() :
 	  )*
   )
   (
-    {		((SelectRequest)request).selectAll = selectAll;		return result;
+    {		((SelectRequest)request).columnAll = columnAll;		return result;
     }
   )
 }
@@ -856,12 +861,21 @@ SelectedColumn selectedColumn() :
 
 void tableExpression() :
 {
+  BooleanValueExpression bve=null;  
 }
 {
-  fromClause()
   (
-    whereClause()
-  )?
+	  fromClause()
+	  (
+	    bve = whereClause(){((SelectRequest)request).bve = bve;}
+	  )?
+  )
+  (    {
+      	if(bve==null)
+      		((SelectRequest)request).predAll=true;
+     	((SelectRequest)request).bve=bve;
+    }
+  )
 }
 
 void fromClause() :
@@ -911,7 +925,7 @@ SelectedTable referedTable() :
   )
 }
 
-void whereClause() :
+BooleanValueExpression whereClause() :
 {
   BooleanValueExpression bve;
 }
@@ -922,7 +936,7 @@ void whereClause() :
   )
   (
     {
-      ((SelectRequest)request).bve = bve;    }
+      return bve;          }
   )
 }
 

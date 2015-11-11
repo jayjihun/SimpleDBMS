@@ -487,14 +487,16 @@ class InsertRequest implements QueryRequest
 
 class SelectRequest implements QueryRequest
 {
-	public boolean selectAll;
+	public boolean columnAll;
+	public boolean predAll;
 	public Vector<SelectedColumn> selectedColumnList;
 	public Vector<SelectedTable> selectedTableList;
 	public BooleanValueExpression bve;
 	
 	public SelectRequest()
 	{
-		selectAll=false;
+		columnAll=false;
+		predAll=false;		
 		selectedColumnList=null;
 		selectedTableList=null;
 		bve =null;
@@ -512,7 +514,7 @@ class SelectRequest implements QueryRequest
 			selectedTableNamespace.addElement(selectedTableName);
 		}
 
-		if(!selectAll)
+		if(!columnAll)
 		{		
 			String newName="";
 			//2. if not select ALL but column resolve error
@@ -601,7 +603,7 @@ class SelectRequest implements QueryRequest
 		
 		//select those who satisfy where clause.
 		Vector<Vector<String>> selectedRecords;
-		if(bve==null)
+		if(predAll)
 		{
 			selectedRecords = interTable.records;
 		}
@@ -634,7 +636,7 @@ class SelectRequest implements QueryRequest
 		Vector<Vector<String>> finalRecords;
 		Vector<String> finalColumns;
 		//project items.
-		if(!selectAll)
+		if(!columnAll)
 		{			
 			Vector<Integer> indexList = new Vector<Integer>(0);
 			for(SelectedColumn sColumn : selectedColumnList)
@@ -693,14 +695,62 @@ class SelectRequest implements QueryRequest
 class DeleteRequest implements QueryRequest
 {
 	public boolean delAll;
+	public String tname;
+	public BooleanValueExpression bve;
 	
 	public DeleteRequest()
 	{
 		delAll = true;
+		tname = "";
+		bve = null;
 	}
+	
 	
 	public QueryMessage execute(AllTables alltables, Vector<Table> tables)
 	{
+		Table targetTable = SimpleDBMSParser._getTable(tname);
+		
+		//1. if no such table exists.
+		if(targetTable == null)
+			return new NoSuchTable();
+		
+		Vector<Vector<String>> records = targetTable.records;
+		for(Vector<String> record : records)
+		{	
+			boolean delFinal = false;
+			boolean shouldIEvalPredicate = true;
+			if(delAll)
+			{
+				delFinal = true;
+			}
+			else
+			{
+				//1. does any table refer to me????
+				boolean amIRefered = (targetTable.refered.size() == 0);
+				if(amIRefered)
+				{
+					//2. is all columns refering me nullable?????
+					boolean isAllReferingsNullable = true;
+					for(String referingTableName : targetTable.refered)
+					{
+						Table referingTable = SimpleDBMSParser._getTable(referingTableName));
+						
+					}
+				}
+				
+	
+				
+				if(shouldIEvalPredicate)
+				{
+					ExBoolean toDel = bve.evaluate(targetTable.columns,record);
+					delFinal = toDel.convert();
+				}
+				
+			}
+			if(delFinal)
+				records.remove(record);			
+		}
+		
 		return null;
 	}
 }

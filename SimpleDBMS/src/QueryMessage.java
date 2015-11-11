@@ -304,6 +304,10 @@ class Dummy implements QueryMessage
 
 class PredicateException extends Exception
 {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 10L;
 	QueryMessage mes;
 	public PredicateException(QueryMessage a)
 	{
