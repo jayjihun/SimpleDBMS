@@ -301,3 +301,12 @@ class Dummy implements QueryMessage
 	}
 }
 
+
+class PredicateException extends Exception
+{
+	QueryMessage mes;
+	public PredicateException(QueryMessage a)
+	{
+		mes = a;
+	}
+}

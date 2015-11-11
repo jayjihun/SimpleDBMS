@@ -469,9 +469,7 @@ class InsertRequest implements QueryRequest
 			Column column = targetTable.getColumn(columnName);
 			String rValue="";
 			if(!columnNames.contains(columnName))
-			{
 				rValue = "@";
-			}
 			else
 			{
 				Value value = values.elementAt(index);
@@ -503,8 +501,7 @@ class SelectRequest implements QueryRequest
 	}
 	
 	public QueryMessage execute(AllTables alltables, Vector<Table> tables)
-	{
-		
+	{		
 		Vector<String > selectedTableNamespace = new Vector<String >(0);
 		//1. if table does not exist
 		for(SelectedTable stable : selectedTableList)
@@ -597,8 +594,10 @@ class SelectRequest implements QueryRequest
 				alias = sTable.aliasName;
 			interTable = Table.cartesian(interTable, newTable,alias);				
 		}
-		//interTable calculation completed............................................
-		
+		//----------------------------intermediate calculation completed-------------------
+		//----------------------------intermediate calculation completed-------------------
+		//----------------------------intermediate calculation completed-------------------
+		//----------------------------intermediate calculation completed-------------------
 		
 		//select those who satisfy where clause.
 		Vector<Vector<String>> selectedRecords;
@@ -611,32 +610,32 @@ class SelectRequest implements QueryRequest
 			selectedRecords = new Vector<Vector<String>>(0);
 			for(Vector<String> record : interTable.records)
 			{
-				ExBoolean exResult = bve.evaluate(interTable.columns, record);
-				boolean result = exResult.convert();
-				if(result)
-					selectedRecords.addElement(record);
+				try
+				{
+					//checking if the predicate is valid is done while Comparing.	
+					ExBoolean exResult = bve.evaluate(interTable.columns, record);
+					boolean result = exResult.convert();
+					if(result)
+						selectedRecords.addElement(record);
+				}
+				catch(PredicateException e)
+				{
+					QueryMessage result = e.mes;
+					return result;
+				}				
 			}
 		}
-		//System.out.println("SELCTED RECORDS");
-		String result="";
-		for(Vector<String> record :selectedRecords)
-		{
-			for(String item : record)
-			{
-				result+=item+"\t";
-			}
-			result+="\n";
-		}		
-		//System.out.println(result);
-		//System.out.println("FINAL RECORDS");
 		
+		//----------------------------predicate applying completed-------------------
+		//----------------------------predicate applying completed-------------------
+		//----------------------------predicate applying completed-------------------
+		//----------------------------predicate applying completed-------------------		
 		Vector<String> colNames = interTable.columnNames;
 		Vector<Vector<String>> finalRecords;
 		Vector<String> finalColumns;
 		//project items.
 		if(!selectAll)
-		{
-			
+		{			
 			Vector<Integer> indexList = new Vector<Integer>(0);
 			for(SelectedColumn sColumn : selectedColumnList)
 			{
@@ -664,24 +663,28 @@ class SelectRequest implements QueryRequest
 			finalColumns = colNames;
 		}
 		
+		//----------------------------projection completed-------------------
+		//----------------------------projection completed-------------------
+		//----------------------------projection completed-------------------
+		//----------------------------projection completed-------------------	
+		
 		//print it!!!
-		result = "";
+		String result = "";
 		for(String columnName : finalColumns)
 			result+=columnName+"\t";
 		result+="\n";
 		for(Vector<String> record : finalRecords)
 		{
 			for(String item : record)
+			{
+				if(item.equals("@"))
+					item = "null";
 				result+=item+"\t";
+			}
 			result+="\n";
 		}
 		result+="\n";
 		System.out.println(result);
-		
-		//interTable = SimpleDBMSParser._getTable(selectedTableList.firstElement().tableName);
-		//System.out.println(interTable.recordString());
-		
-		//print it!
 		return new Dummy();
 	}
 }
