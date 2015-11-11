@@ -709,16 +709,56 @@ class DeleteRequest implements QueryRequest
 	public QueryMessage execute(AllTables alltables, Vector<Table> tables)
 	{
 		Table targetTable = SimpleDBMSParser._getTable(tname);
+		boolean shouldIEvalPredicate = true;
+		int deleteCount = 0;
+		int failDelCount = 0;
 		
 		//1. if no such table exists.
 		if(targetTable == null)
 			return new NoSuchTable();
 		
 		Vector<Vector<String>> records = targetTable.records;
+		
+		boolean amIRefered = (targetTable.refered.size() != 0);
+		if(amIRefered)
+		{
+			//2. is all columns refering me nullable?????
+			boolean isAllReferingsNullable = true;
+			for(String referingTableName : targetTable.refered)
+			{
+				if(!isAllReferingsNullable)
+					break;
+				
+				Table referingTable = SimpleDBMSParser._getTable(referingTableName);
+				Vector<Column> columns = referingTable.columns;
+				for(Column column : columns)
+				{
+					if(column.isFor)
+					{
+						if(!column.nullOk)
+						{
+							isAllReferingsNullable = false;
+							break;
+						}
+					}
+				}
+			}
+			
+			if(isAllReferingsNullable)
+			{
+				/*
+				 * if all my referings are nullable, then make the records that refers my record nulls!!!!!! 
+				 */
+				
+			}
+		}
+		
+		
+		
 		for(Vector<String> record : records)
-		{	
+		{
 			boolean delFinal = false;
-			boolean shouldIEvalPredicate = true;
+			
 			if(delAll)
 			{
 				delFinal = true;
@@ -727,18 +767,7 @@ class DeleteRequest implements QueryRequest
 			{
 				//1. does any table refer to me????
 				boolean amIRefered = (targetTable.refered.size() == 0);
-				if(amIRefered)
-				{
-					//2. is all columns refering me nullable?????
-					boolean isAllReferingsNullable = true;
-					for(String referingTableName : targetTable.refered)
-					{
-						Table referingTable = SimpleDBMSParser._getTable(referingTableName));
-						
-					}
-				}
-				
-	
+
 				
 				if(shouldIEvalPredicate)
 				{
